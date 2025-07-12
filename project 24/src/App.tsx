@@ -4,13 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { SettingsProvider } from './contexts/SettingsContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import Conversations from './pages/Conversations';
 import MediaLibrary from './pages/MediaLibrary';
-import ContextManagement from './pages/ContextManagement';
-import ContextScrape from './pages/ContextScrape';
-import HTMLGenerator from './pages/HTMLGenerator';
-import Analytics from './pages/Analytics';
-import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -20,13 +14,7 @@ function App() {
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/conversations" element={<Conversations />} />
               <Route path="/media" element={<MediaLibrary />} />
-              <Route path="/context" element={<ContextManagement />} />
-              <Route path="/scrape" element={<ContextScrape />} />
-              <Route path="/html-generator" element={<HTMLGenerator />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/settings" element={<Settings />} />
             </Routes>
           </Layout>
           <Toaster 

@@ -2,7 +2,8 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { supabase, MediaContext } from '../lib/supabase';
+import { getDB } from '../lib/indexedDB';
+import { MediaContext } from '../lib/types';
 
 const ContextOverview: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
@@ -15,15 +16,8 @@ const ContextOverview: React.FC = () => {
   const fetchChartData = async () => {
     try {
       setLoading(true);
-      const { data: mediaData, error } = await supabase
-        .from('media_contexts')
-        .select('created_at')
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        console.error('Error fetching chart data:', error);
-        return;
-      }
+      const db = await getDB();
+      const mediaData = await db.getAllFromIndex('media', 'by-created_at');
       
       // Group media by month
       const monthlyData: { [key: string]: number } = {};
@@ -38,7 +32,7 @@ const ContextOverview: React.FC = () => {
       }
       
       // Count actual media uploads by month
-      (mediaData || []).forEach((item: MediaContext) => {
+      (mediaData || []).forEach((item: any) => {
         const date = new Date(item.created_at);
         const monthKey = months[date.getMonth()];
         if (monthlyData.hasOwnProperty(monthKey)) {

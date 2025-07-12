@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Image, Video, ExternalLink, Tag } from 'lucide-react';
-import { supabase, MediaContext } from '../lib/supabase';
+import { getDB } from '../lib/indexedDB';
+import { MediaContext } from '../lib/types';
 
 interface MediaGridProps {
   filter: string;
@@ -20,14 +21,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ filter, onItemClick, refreshTrigg
   const fetchMediaItems = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('media_contexts')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        throw error;
-      }
+      const db = await getDB();
+      const data = await db.getAllFromIndex('media', 'by-created_at');
+      data.reverse(); // To get descending order
       
       setMediaItems(data || []);
     } catch (error) {

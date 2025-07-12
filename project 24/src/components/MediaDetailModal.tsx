@@ -5,7 +5,8 @@ import {
   X, FileText, Image, Video, Tag, Calendar, HardDrive, ChevronDown, ChevronRight, 
   Zap, Edit3, Save, Plus, Trash2, Sparkles, Loader, Check, AlertCircle 
 } from 'lucide-react';
-import { MediaContext, MediaAnalysisChunk, supabase } from '../lib/supabase';
+import { getDB } from '../lib/indexedDB';
+import { MediaContext, MediaAnalysisChunk } from '../lib/types';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../contexts/SettingsContext';
 import { generateImageWithDalle, generatePromptForMedia } from '../utils/openaiApi';
@@ -38,16 +39,8 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ item, onClose, onUp
   const fetchAnalysisChunks = async () => {
     try {
       setLoadingChunks(true);
-      const { data, error } = await supabase
-        .from('media_analysis_chunks')
-        .select('*')
-        .eq('media_context_id', item.id)
-        .order('chunk_index', { ascending: true });
-      
-      if (error) {
-        console.error('Error fetching analysis chunks:', error);
-        return;
-      }
+      const db = await getDB();
+      const data = await db.getAllFromIndex('mediaAnalysisChunks', 'by-media_context_id', item.id);
       
       setChunks(data || []);
     } catch (error) {
@@ -122,12 +115,8 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ item, onClose, onUp
 
   const handleSaveName = async () => {
     try {
-      const { error } = await supabase
-        .from('media_contexts')
-        .update({ name: editedName })
-        .eq('id', item.id);
-      
-      if (error) throw error;
+      const db = await getDB();
+      await db.put('media', { ...item, name: editedName });
       
       toast.success('File name updated successfully!');
       setIsEditingName(false);
@@ -160,12 +149,8 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ item, onClose, onUp
       const imageUrl = await generateImageWithDalle(prompt, openaiApiKey);
       
       // Update the thumbnail_url in database
-      const { error } = await supabase
-        .from('media_contexts')
-        .update({ thumbnail_url: imageUrl })
-        .eq('id', item.id);
-      
-      if (error) throw error;
+      const db = await getDB();
+      await db.put('media', { ...item, thumbnail_url: imageUrl });
       
       // Update local state
       item.thumbnail_url = imageUrl;
@@ -182,12 +167,8 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ item, onClose, onUp
 
   const handleSaveTags = async () => {
     try {
-      const { error } = await supabase
-        .from('media_contexts')
-        .update({ user_tags: userTags })
-        .eq('id', item.id);
-      
-      if (error) throw error;
+      const db = await getDB();
+      await db.put('media', { ...item, user_tags: userTags });
       
       toast.success('Tags updated successfully!');
       setIsEditingTags(false);

@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { getDB } from '../lib/indexedDB';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 const CHUNK_SIZE = 10000; // Characters per chunk for text analysis
@@ -105,23 +105,18 @@ Focus specifically on this chunk's content, not the entire document.`
       const parsedAnalysis = parseGeminiAnalysis(analysis);
       
       // Save chunk analysis to database
-      const { error } = await supabase
-        .from('media_analysis_chunks')
-        .insert([
-          {
-            media_context_id: mediaContextId,
-            chunk_index: chunkIndex,
-            chunk_content: chunkContent.substring(0, 1000) + (chunkContent.length > 1000 ? '...' : ''), // Store first 1000 chars as preview
-            summary: parsedAnalysis.summary,
-            key_insights: parsedAnalysis.keyInsights,
-            suggested_tags: parsedAnalysis.suggestedTags,
-            notable_features: parsedAnalysis.notableFeatures
-          }
-        ]);
-      
-      if (error) {
-        throw error;
-      }
+      const db = await getDB();
+      await db.put('mediaAnalysisChunks', {
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        media_context_id: mediaContextId,
+        chunk_index: chunkIndex,
+        chunk_content: chunkContent.substring(0, 1000) + (chunkContent.length > 1000 ? '...' : ''), // Store first 1000 chars as preview
+        summary: parsedAnalysis.summary,
+        key_insights: parsedAnalysis.keyInsights,
+        suggested_tags: parsedAnalysis.suggestedTags,
+        notable_features: parsedAnalysis.notableFeatures
+      });
       
     } else {
       throw new Error('Unexpected response format from Gemini API');
@@ -140,22 +135,17 @@ export const analyzeTextWithGeminiChunking = async (
 ): Promise<string> => {
   try {
     // First, save the basic file info to get the media_context_id
-    const { data: mediaData, error: mediaError } = await supabase
-      .from('media_contexts')
-      .insert([
-        {
-          name: fileName,
-          type: 'text/plain',
-          size: new Blob([content]).size,
-          file_url: null // We'll store content in chunks
-        }
-      ])
-      .select()
-      .single();
-    
-    if (mediaError) {
-      throw mediaError;
-    }
+    const db = await getDB();
+    const mediaId = crypto.randomUUID();
+    const mediaData = {
+      id: mediaId,
+      created_at: new Date().toISOString(),
+      name: fileName,
+      type: 'text/plain',
+      size: new Blob([content]).size,
+      file_url: null // We'll store content in chunks
+    };
+    await db.put('media', mediaData);
     
     // Split into chunks
     const chunks = chunkText(content);
@@ -223,8 +213,8 @@ export const analyzeMediaWithGemini = async (
       // Parse the analysis to extract structured data
       const parsedAnalysis = parseGeminiAnalysis(analysis);
       
-      // Save to Supabase
-      await saveToSupabase(file, parsedAnalysis, dataUrl);
+      // Save to DB
+      await saveToDB(file, parsedAnalysis, dataUrl);
       
     } else {
       throw new Error('Unexpected response format from Gemini API');
@@ -236,7 +226,7 @@ export const analyzeMediaWithGemini = async (
   }
 };
 
-const saveToSupabase = async (file: File, analysis: any, dataUrl: string) => {
+const saveToDB = async (file: File, analysis: any, dataUrl: string) => {
   try {
     // Generate thumbnail URL for images
     let thumbnailUrl = null;
@@ -244,30 +234,26 @@ const saveToSupabase = async (file: File, analysis: any, dataUrl: string) => {
       thumbnailUrl = dataUrl; // Use the data URL as thumbnail for now
     }
     
-    const { data, error } = await supabase
-      .from('media_contexts')
-      .insert([
-        {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          thumbnail_url: thumbnailUrl,
-          gemini_summary: analysis.summary,
-          gemini_key_insights: analysis.keyInsights,
-          gemini_suggested_tags: analysis.suggestedTags,
-          gemini_notable_features: analysis.notableFeatures,
-          file_url: dataUrl // Store the data URL for now
-        }
-      ])
-      .select();
+    const db = await getDB();
+    const mediaId = crypto.randomUUID();
+    const mediaData = {
+      id: mediaId,
+      created_at: new Date().toISOString(),
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      thumbnail_url: thumbnailUrl,
+      gemini_summary: analysis.summary,
+      gemini_key_insights: analysis.keyInsights,
+      gemini_suggested_tags: analysis.suggestedTags,
+      gemini_notable_features: analysis.notableFeatures,
+      file_url: dataUrl // Store the data URL for now
+    };
+    await db.put('media', mediaData);
     
-    if (error) {
-      throw error;
-    }
-    
-    console.log('Saved to Supabase:', data);
+    console.log('Saved to DB:', mediaData);
   } catch (error) {
-    console.error('Supabase Error:', error);
+    console.error('DB Error:', error);
     throw new Error(`Failed to save to database: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };

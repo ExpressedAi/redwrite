@@ -1,7 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import StatsCards from '../components/StatsCards';
-import RecentActivity from '../components/RecentActivity';
 import ContextOverview from '../components/ContextOverview';
 import QuickActions from '../components/QuickActions';
 
@@ -19,15 +17,12 @@ const Dashboard: React.FC = () => {
         </p>
       </motion.div>
 
-      <StatsCards />
-      
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
           <ContextOverview />
         </div>
         <div className="space-y-6">
           <QuickActions />
-          <RecentActivity />
         </div>
       </div>
     </div>

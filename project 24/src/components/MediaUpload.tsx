@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { X, Upload, FileText, Image, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
+import { getDB } from '../lib/indexedDB';
 import { useSettings } from '../contexts/SettingsContext';
 import { 
   isTextFile, 
@@ -70,22 +70,17 @@ const MediaUpload: React.FC<MediaUploadProps> = ({ onClose }) => {
           const fileContent = reader.result as string;
           
           // Save basic file info first
-          const { data: mediaData, error: mediaError } = await supabase
-            .from('media_contexts')
-            .insert([
-              {
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                file_url: fileContent
-              }
-            ])
-            .select()
-            .single();
-          
-          if (mediaError) {
-            throw mediaError;
-          }
+          const db = await getDB();
+          const mediaId = crypto.randomUUID();
+          const mediaData = {
+            id: mediaId,
+            created_at: new Date().toISOString(),
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            file_url: fileContent
+          };
+          await db.put('media', mediaData);
           
           // Extract text content for chunking
           let textContent = '';
@@ -156,22 +151,17 @@ const MediaUpload: React.FC<MediaUploadProps> = ({ onClose }) => {
             thumbnailUrl = result;
           }
           
-          const { data, error } = await supabase
-            .from('media_contexts')
-            .insert([
-              {
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                thumbnail_url: thumbnailUrl,
-                file_url: result
-              }
-            ])
-            .select();
-          
-          if (error) {
-            throw error;
-          }
+          const db = await getDB();
+          const mediaId = crypto.randomUUID();
+          await db.put('media', {
+            id: mediaId,
+            created_at: new Date().toISOString(),
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            thumbnail_url: thumbnailUrl,
+            file_url: result
+          });
           
           toast.success(`${file.name} uploaded successfully!`);
         } catch (error) {
